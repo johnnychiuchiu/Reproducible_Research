@@ -1,0 +1,98 @@
+Peer Accessment 1 
+====================================
+###Loading and preprocessing the data
+Seeting the local working directory to read the csv file.
+```{r}
+setwd('/Users/JohnnyChiu/Desktop/檔案總管/學習/coursera/JohnHopkins-DataScience/Reproducible research/project1/')
+data<-read.csv('activity.csv')
+head(data)
+```
+
+
+###What is mean total number of steps taken per day?
+I will use the dplyr package to transform the data, and use ggplot2 to plot.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+transform_data_1<-data %>% group_by(date) %>% summarize(sum=sum(steps))
+dim(transform_data_1)  
+
+mean<-mean(transform_data_1$sum,na.rm=TRUE)  
+median<-median(transform_data_1$sum,na.rm=TRUE)  
+
+qplot(sum,data=transform_data_1,fill=date)   #It's the histogram of it
+qplot(date,sum,data=transform_data_1,geom="bar",stat="identity")   #It's the bar plot of it
+```
+
+  
+*The mean and median of the total number of steps taken per day is **`r mean`** and **`r median`** *
+
+###What is the average daily activity pattern?
+1.  Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r}
+transform_data_2<-data %>% group_by(interval) %>% summarize(mean=mean(steps,na.rm=TRUE))
+qplot(interval,mean,data=transform_data_2,geom="line",stat="identity")
+ggplot(transform_data_2, aes(interval, mean)) + geom_line()
+
+transform_data_3<-transform_data_2 %>% filter(mean==max(transform_data_2$mean))
+max_interval<-as.double(transform_data_3[1,1])
+```
+2.  Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?  
+*The **`r max_interval`** 5-minute interval contains the maximum number of steps*
+
+###Imputing missing values
+1.  Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r}
+transform_data_4<-data %>% filter(is.na(steps))
+na_row<-dim(transform_data_4)[1]
+```
+*The total number of missing values are **`r na_row`***
+
+2.  Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+```{r}
+transform_data_5<-data
+for(i in 1:dim(transform_data_5)[1]){
+  if(is.na(transform_data_5[i,1])){
+    for(j in 1:dim(transform_data_2)[1]){
+      if(transform_data_5[i,3]==transform_data_2[j,1]){
+        transform_data_5[i,1]<-transform_data_2[j,2]
+      }
+    }
+  }
+}
+transform_data_7<-data %>% group_by(date) %>% summarize(sum=sum(steps))
+qplot(sum,data=transform_data_7,fill=date)
+transformed_mean<-mean(transform_data_7$sum,na.rm=TRUE)  
+transformed_median<-median(transform_data_7$sum,na.rm=TRUE)  
+    
+```
+
+*The mean and median of the total number of steps taken per day after impute NA value is **`r transformed_mean`** and **`r transformed_median`** *
+
+###Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+transform_data_8<-data
+for(i in 1:dim(transform_data_8)[1]){
+  transform_data_8$day[i]<-weekdays(as.Date(data[i,2]))
+  if(transform_data_8$day[i]=='周日'|transform_data_8$day[i]=='周六'){
+    transform_data_8$weekday[i]<-'weekend'
+  }else{
+    transform_data_8$weekday[i]<-'weekday'
+  }
+}
+
+transform_data_8_weekday<-transform_data_8 %>% filter(weekday=='weekday') %>%
+                          group_by(interval) %>% summarize(mean=mean(steps,na.rm=TRUE))
+transform_data_8_weekend<-transform_data_8 %>% filter(weekday=='weekend') %>%
+                          group_by(interval) %>% summarize(mean=mean(steps,na.rm=TRUE))
+transform_data_8_weekday$weekday<-'weekday'
+transform_data_8_weekend$weekday<-'weekend'
+transform_data_9<-rbind(transform_data_8_weekday,transform_data_8_weekend)
+qplot(interval,mean,data=transform_data_9,facets=weekday~.,geom="line")+ylab('number of steps')
+```
+
+
